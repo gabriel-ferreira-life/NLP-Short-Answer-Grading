@@ -1,6 +1,3 @@
-scikit-learn
-nltk
-gensim
-rake-nltk
-evaluate
-wandb
+langchain
+langchain-ollama
+langchain-chroma
