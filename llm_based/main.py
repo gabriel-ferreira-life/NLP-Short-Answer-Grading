@@ -10,11 +10,16 @@ import json
 with open('../config/config.json', 'r') as f:
     config = json.load(f)
 
-# Load the dataset
+# Data location
 file_path = config["data_loc"]
-file_name = "train.csv"
-final_path = os.path.join(file_path, file_name) 
-df = pd.read_csv(final_path, encoding='windows-1252')
+
+# Load the train dataset
+final_path = os.path.join(file_path, "train.csv") 
+df_train = pd.read_csv(final_path, encoding='windows-1252')
+
+# Load the test dataset
+final_path = os.path.join(file_path, "test.csv") 
+df_test = pd.read_csv(final_path, encoding='windows-1252')
 
 # Initialize the model
 model = OllamaLLM(model="llama3.2")
@@ -51,35 +56,30 @@ prompt = ChatPromptTemplate.from_template(
 chain = prompt | model
 
 # Create few-shot examples
-few_shot_df = create_few_shot_examples(df, n=1)
+few_shot_df = create_few_shot_examples(df_train, n=1)
 prompt_context = "\n".join(few_shot_df.apply(few_shot_format, axis=1).tolist())
 
 # Define the inputs
 result = chain.invoke(
     {
         "prompt_context": f"{prompt_context}",
-        "question": "What is the capital of France?",
-        "student_response": "Paris is the capital of France.",
-        "correct_answer": "The capital of France is Paris.",
+        "question": df_test.iloc[0]["Question"],
+        "student_response": df_test.iloc[0]["Response"],
+        "correct_answer": df_test.iloc[0]["CorrectAnswer"],
         "Label": []
     }
 )
 
+# Print the prompt context
 formatted_prompt = prompt.format_messages(
     prompt_context=prompt_context,
-    question="What is the capital of France?",
-    student_response="Paris is the capital of France.",
-    correct_answer="The capital of France is Paris."
+    question=df_test.iloc[0]["Question"],
+    student_response=df_test.iloc[0]["Response"],
+    correct_answer=df_test.iloc[0]["CorrectAnswer"],
 )
-
 print("=== Final Prompt Sent to LLM ===")
-print(formatted_prompt[0].content)
+print(formatted_prompt[0].content, "\n")
 
+# Print the result
 print("=== Result ===")
-print(result)
-
-import re
-
-match = re.search(r"Label:\s*(-?1|0)", result)
-predicted_label = match.group(1) if match else None
-print(f"Predicted label: {predicted_label}")
+print(result, "\n")
