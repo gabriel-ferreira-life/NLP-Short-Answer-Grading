@@ -6,7 +6,7 @@ You will be given a question, a student response, and the correct answer.
 Your job is to assign a label:
 - 1 if the response is correct
 - 0 if the response is somewhat correct but not precise
-- -1 if the response is incorrect
+- -1 if the response is incorrect 
 
 Below are some graded examples:
 {prompt_context}
