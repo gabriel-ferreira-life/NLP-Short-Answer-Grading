@@ -14,11 +14,15 @@ NLP-Short-Answer-Grading/
 ├── exploration/
 │ └── eda.ipynb # Exploratory Data Analysis
 │
-├── llm_based/
+├── few_shot_exploration/
 │ ├── main.py # Entry point: loads data, formats prompt, runs predictions
 │ └── prompts/
 │  ├── few_shot.py # Functions to format few-shot examples
 │  └── template.py # Prompt template used by the LLM
+│
+├── llama3.2/
+│ ├── nlp-short-answer-grading-llama-fine-tunning.ipynb
+│ └── nlp-short-answer-grading-llama-inference.ipynb
 │
 └── problem_description/
   └── Final project.pdf # Project Description
