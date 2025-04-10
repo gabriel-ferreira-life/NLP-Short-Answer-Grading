@@ -54,7 +54,7 @@ tokenizer = AutoTokenizer.from_pretrained("Gabriel-Ferreira/Llama-3.2-3B-Instruc
 ## 📊 Evaluation
 
 Evaluation was conducted using prompt-based generation and label matching. The output was compared against gold labels using macro F1, accuracy, precision, and recall.
-
+<!-- 
 ---
 
 ## ⚙️ Training Details
@@ -65,7 +65,7 @@ Evaluation was conducted using prompt-based generation and label matching. The o
 - **LoRA Rank**: 64  
 - **Learning Rate**: 2e-4  
 - **Epochs**: 1  
-- **Trainer**: `SFTTrainer` from Hugging Face TRL
+- **Trainer**: `SFTTrainer` from Hugging Face TRL -->
 
 ---
 
