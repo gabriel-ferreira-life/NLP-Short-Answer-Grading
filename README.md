@@ -75,6 +75,9 @@ Evaluation was conducted using prompt-based generation and label matching. The o
 - Logging with [Weights & Biases](https://wandb.ai)  
 - Base model by Meta AI
 
+---
+
+## Repo Structure
 ```text
 NLP-Short-Answer-Grading/
 ├── config/
