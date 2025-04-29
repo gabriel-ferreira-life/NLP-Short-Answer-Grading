@@ -1,0 +1,283 @@
+% This must be in the first 5 lines to tell arXiv to use pdfLaTeX, which is strongly recommended.
+\pdfoutput=1
+% In particular, the hyperref package requires pdfLaTeX in order to break URLs across lines.
+
+\documentclass[11pt]{article}
+
+% Change "review" to "final" to generate the final (sometimes called camera-ready) version.
+% Change to "preprint" to generate a non-anonymous version with page numbers.
+\usepackage[final]{acl}
+
+% Standard package includes
+\usepackage{times}
+\usepackage{latexsym}
+
+% For proper rendering and hyphenation of words containing Latin characters (including in bib files)
+\usepackage[T1]{fontenc}
+% For Vietnamese characters
+% \usepackage[T5]{fontenc}
+% See https://www.latex-project.org/help/documentation/encguide.pdf for other character sets
+
+% This assumes your files are encoded as UTF8
+\usepackage[utf8]{inputenc}
+
+% This is not strictly necessary, and may be commented out,
+% but it will improve the layout of the manuscript,
+% and will typically save some space.
+\usepackage{microtype}
+
+% This is also not strictly necessary, and may be commented out.
+% However, it will improve the aesthetics of text in
+% the typewriter font.
+\usepackage{inconsolata}
+
+%Including images in your LaTeX document requires adding
+%additional package(s)
+\usepackage{graphicx}
+
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{url}
+\renewcommand{\UrlFont}{\ttfamily\small}
+\usepackage{amsmath}
+
+\title{Automated Short Answer Grading: Comparing Rule-Based, BERT, and LLaMA Models}
+\author{Nicholas George \and Gabriel Gomes Ferreira \and Bhavika Gungurthi\\
+  Department of Computer Science \\ Iowa State University \\ 
+  \texttt{georgen/gabferre/bhavika2@iastate.edu}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Short answer grading (SAG) is the task of automatically evaluating a student's free-form response to a question against the correct answer. This paper presents a comparative study of three approaches for automated short-answer grading: a simple rule-based method, a fine-tuned BERT-based classifier, and a fine-tuned LLaMA (large language model) approach. Using a dataset of science questions with labels (Correct, Partially Correct, Incorrect), we found that large transformer-based models achieve state-of-the-art performance on this task. In particular, our fine-tuned LLaMA model attained high accuracy in identifying correct and incorrect answers, though all models struggled with the nuanced “partially correct” class. We discuss the trade-offs between model complexity, interpretability, and performance. This work highlights that while advanced pre-trained models can significantly improve grading accuracy, simpler methods still offer interpretability and lower deployment cost.
+\end{abstract}
+
+\section*{Executive Summary}
+Educators often face the tedious task of grading short answer questions for large classes. Our project explores how AI can assist in this process by automatically grading student responses. We implemented three different graders: 
+(1) a \textbf{rule-based grader} that uses simple heuristics (like keyword matching) to decide if an answer is correct or not, 
+(2) a \textbf{BERT-based grader} that uses a pre-trained transformer (BERT/RoBERTa) fine-tuned on a labeled dataset of Q\&A, and 
+(3) a \textbf{LLM-based grader} that leverages a large language model (LLaMA) fine-tuned to act like an expert grading assistant.
+
+Why these approaches? The rule-based model is easy to understand and explain, but it may miss nuances. The BERT-based model is a proven NLP technique that can learn to evaluate answers with decent accuracy. The LLM (LLaMA) approach is cutting-edge—these models understand language deeply and might catch subtle correctness cues.
+
+Key findings: Our LLaMA model achieved nearly 95\% accuracy, significantly outperforming the others on standard examples. However, even it struggled with partially correct responses. The rule-based approach was overly strict, while the BERT-based model performed well on majority classes but entirely missed the partially correct ones. Our results underscore the potential of hybrid models and the importance of balancing performance with interpretability.
+
+\section{Introduction}
+Automated Short Answer Grading (ASAG) is the task of evaluating students’ free-text responses using computational methods. ASAG holds great promise for improving scalability and consistency in grading, particularly in online learning platforms, large lecture courses, and standardized assessments. However, short answers exhibit high linguistic variability, and determining correctness often requires understanding intent, partial knowledge, and conceptual connections.
+
+Prior approaches to ASAG ranged from keyword matching and handcrafted templates to more sophisticated similarity measures. While interpretable, such systems lacked robustness to paraphrasing or semantic variation. The emergence of pre-trained transformers like BERT and RoBERTa introduced powerful general-purpose text representations that could be fine-tuned for ASAG tasks. Even more recently, instruction-tuned large language models (LLMs) such as LLaMA have shown promise in text generation, reasoning, and few-shot classification, enabling them to evaluate answers directly via prompt-based techniques.
+
+This paper explores and compares three approaches to SAG:
+\begin{itemize}
+    \item A \textbf{rule-based baseline}, using keyword overlap and simple heuristics
+    \item A \textbf{RoBERTa-based classifier}, trained on labeled Q-A data
+    \item A \textbf{LLaMA-3B model}, instruction-tuned using LoRA to generate class labels from prompts
+\end{itemize}
+
+We aim to assess performance across three classes (Correct, Partially Correct, Incorrect) using a scientific QA dataset. Our focus is on not only classification performance, but also trade-offs in interpretability, cost, and scalability. We also analyze each model’s ability to handle edge cases, such as partially correct responses.
+
+\section{Related Work}
+Automatic short answer grading systems have evolved over the past two decades. Early symbolic approaches like c-rater and ETS's E-Rater used rule-based systems with handcrafted templates. Later, vector-space models used cosine similarity between bag-of-words or TF-IDF embeddings. Semantic similarity using WordNet or dependency parsing also emerged as common tools.
+
+The introduction of neural methods marked a major transition. Sequence models like LSTMs were used for sentence pair classification, but performance was limited by the need for large labeled datasets. BERT (Devlin et al., 2019) and RoBERTa (Liu et al., 2019) improved this by leveraging transfer learning. Fine-tuning BERT-based models for ASAG tasks (Sung et al., 2019; Sultan et al., 2019) produced strong results, particularly when adapted to domain-specific corpora.
+
+Recent advances in generative models—e.g., GPT-3, GPT-4, LLaMA—have demonstrated that LLMs can perform classification and grading tasks in few-shot or zero-shot settings using natural prompts. Kortemeyer (2024) found that GPT-4 performed competitively with trained BERT classifiers on SciEntsBank, though domain-tuned models still outperformed general models. LoRA-based fine-tuning (Hu et al., 2021) further reduced the cost of adapting LLMs for grading tasks, making them viable for this work.
+
+\section{Methods}
+\subsection{Overview}
+We evaluate three approaches to short answer grading using the same data inputs: the original question, the reference answer, and a student’s response. The target output is one of three grades: \textbf{Correct}, \textbf{Partially Correct}, or \textbf{Incorrect}.
+
+Our evaluation compares model performance in terms of classification accuracy, macro-F1, and interpretability. We also provide qualitative examples to highlight differences in model behavior.
+
+\subsection{Rule-Based Heuristic Grader}
+The rule-based model checks for keyword overlap between the student’s response and the correct answer:
+\begin{itemize}
+    \item Stopwords are removed, and both texts are normalized.
+    \item If the student’s response includes all the key terms from the reference, it is graded as \textbf{Correct}.
+    \item If it includes more than 50\% of the key terms, it is marked \textbf{Partially Correct}.
+    \item Otherwise, it is labeled \textbf{Incorrect}.
+\end{itemize}
+
+This approach is simple and interpretable but brittle. It fails to detect semantically equivalent responses with different vocabulary and cannot recognize negation or entailment.
+
+\subsection{BERT-Based Classifier (RoBERTa)}
+We use RoBERTa-base, a robustly optimized BERT variant, fine-tuned for 3-class classification. Each input consists of three components: the question, the reference answer, and the student response. These are concatenated with special separator tokens and tokenized using the Hugging Face tokenizer.
+
+The model is trained using a cross-entropy loss across three labels:
+\begin{itemize}
+    \item Label 2: Correct
+    \item Label 1: Partially Correct
+    \item Label 0: Incorrect
+\end{itemize}
+
+We trained for 3 epochs on the training set (80\% split), with a batch size of 16 and learning rate of 2e-5. Model checkpoints were monitored using weighted-F1 on the validation split. Despite its strong overall performance, RoBERTa failed to predict the “Partially Correct” class during inference, likely due to class imbalance in the dataset.
+
+\subsection{LLM-Based Model (LLaMA-3B)}
+We instruction-tuned LLaMA-3B using LoRA and the TRL (Transformers Reinforcement Learning) library. Each training instance was formatted as an instructional prompt:
+
+\begin{quote}
+\texttt{You are a professor. Grade the student response as Correct, Partially Correct, or Incorrect.\\
+Question: Why does ice float?\\
+Reference Answer: Because it is less dense than water.\\
+Student Response: It’s lighter than water.\\
+Label: Correct}
+\end{quote}
+
+We used 4-bit quantization and gradient accumulation for efficient training. Only adapter parameters were updated, preserving the pre-trained weights. The model was trained until the accuracy on a held-out set stabilized.
+
+Inference involved prompting the model with similar examples and parsing the predicted label from the generated output. Outputs were normalized and matched against the label set.
+
+\section{Experiments and Results}
+\subsection{Dataset}
+Our dataset includes over 30,000 science-domain short answers. Each instance consists of:
+\begin{itemize}
+    \item A question
+    \item An expert reference answer
+    \item A student response
+    \item A label: 1 (Correct), 0 (Partially Correct), or -1 (Incorrect)
+\end{itemize}
+
+Test set distribution:
+\begin{itemize}
+    \item Correct: 13,532 responses (44\%)
+    \item Partially Correct: 320 responses (1\%)
+    \item Incorrect: 16,614 responses (55\%)
+\end{itemize}
+
+The severe class imbalance presents a key challenge for all models, particularly in recognizing partially correct answers, which require semantic nuance.
+
+\subsection{Evaluation Metrics}
+We evaluate each model using:
+\begin{itemize}
+    \item \textbf{Accuracy} – Overall correct predictions
+    \item \textbf{Macro-F1} – Unweighted mean F1 across all classes
+    \item \textbf{Weighted-F1} – F1-score weighted by class support
+    \item \textbf{Per-class precision/recall/F1}
+    \item \textbf{Confusion matrices}
+\end{itemize}
+
+RoBERTa and LLaMA were validated using held-out splits from the training set. The final models were evaluated on the full test set. The rule-based model required no training and was directly evaluated.
+
+\subsection{Results}
+\begin{table}[h]
+\centering
+\begin{tabular}{lccc}
+\hline
+\textbf{Model} & \textbf{Accuracy} & \textbf{Macro-F1} & \textbf{Weighted-F1} \\
+\hline
+Rule-Based & 70.0\% & 48.0\% & 71.0\% \\
+RoBERTa (BERT) & 91.7\% & 61.0\% & 91.0\% \\
+LLaMA-3B & 94.8\% & 71.0\% & 95.0\% \\
+\hline
+\end{tabular}
+\caption{Test performance of all three models.}
+\end{table}
+
+The LLaMA model achieved the best performance across all metrics, particularly in handling the “Correct” and “Incorrect” classes. It was also the only model that successfully predicted a significant portion of the “Partially Correct” responses (F1 = 0.22).
+
+\subsection{Analysis of Class-Level Performance}
+The rule-based model was overly strict. It correctly identified many incorrect answers but failed to recognize correct or partially correct answers unless the wording was nearly exact. It achieved high precision for the “Incorrect” class (0.95), but extremely low recall for “Correct” (0.41) and “Partially Correct” (0.17). The macro-F1 score (48.0\%) reflects its inability to balance across classes.
+
+The BERT-based RoBERTa model demonstrated excellent precision and recall for “Correct” and “Incorrect,” but it failed to predict “Partially Correct” in any instance. This pushed its macro-F1 to 61.0\%, highlighting the detrimental effect of class imbalance.
+
+The LLaMA model achieved near-human performance on the dominant classes and was the only one that recognized some partial credit responses. Its per-class breakdown:
+\begin{itemize}
+    \item Correct – Precision: 0.97, Recall: 0.94, F1: 0.95
+    \item Incorrect – Precision: 0.96, Recall: 0.97, F1: 0.97
+    \item Partially Correct – Precision: 0.16, Recall: 0.35, F1: 0.22
+\end{itemize}
+
+\subsection{Qualitative Example}
+To better understand model behavior, consider the following sample:
+
+\textbf{Question:} “What is the function of mitochondria?”
+
+\textbf{Reference Answer:} “It is the powerhouse of the cell; it produces energy.”
+
+\textbf{Student A:} “The mitochondria produce ATP.” — \textit{Model outputs:} Rule-Based: Incorrect, RoBERTa: Correct, LLaMA: Correct
+
+\textbf{Student B:} “Mitochondria help the cell.” — \textit{Model outputs:} Rule-Based: Incorrect, RoBERTa: Incorrect, LLaMA: Partially Correct
+
+\textbf{Student C:} “Mitochondria are found in the cell membrane.” — \textit{Model outputs:} All models: Incorrect
+
+In this example, LLaMA demonstrates sensitivity to the nuance in Student B’s response, which is only partially aligned with the expected answer. The rule-based and RoBERTa models fail to identify the partial correctness.
+
+\subsection{Discussion}
+LLaMA’s instruction-tuned architecture allows it to interpret semantic nuance and adapt to task-specific prompts. While its performance was strongest overall, its inability to confidently handle ambiguous cases (e.g., partial correctness) indicates that more focused fine-tuning or example-based augmentation may be necessary.
+
+The rule-based model, while limited, was transparent and easily auditable. In settings where explainability or low-resource deployment is critical (e.g., mobile apps or low-bandwidth classrooms), it may still serve as a useful fallback or pre-filter.
+
+BERT-based RoBERTa struck a balance between interpretability and performance but suffered from a lack of representation for partial answers in its training data. Future fine-tuning with class balancing techniques could improve this.
+
+\section{Limitations}
+Despite promising findings, our study faces several limitations:
+
+\textbf{1. Dataset Domain.} All examples were drawn from science curricula. Performance on literary, philosophical, or open-ended analytical questions remains unexplored. Such tasks may demand different representations and reasoning capabilities.
+
+\textbf{2. Label Imbalance.} The “Partially Correct” class was underrepresented (\\textasciitilde1\%), which led most models to ignore or under-predict it. Techniques like class re-weighting, synthetic augmentation, or prompt-based few-shot examples could mitigate this in future iterations.
+
+\textbf{3. Evaluation Methodology.} We used standard classification metrics. However, SAG is often more nuanced. Rubric-based scoring or ordinal regression might provide more context-sensitive evaluations. Current metrics also assume a single gold label, which is often unrealistic for real-world grading tasks.
+
+\textbf{4. Interpretability of LLMs.} LLaMA, like most LLMs, operates as a black box. While we can extract predictions, it does not naturally provide a rationale. For SAG systems deployed in education, providing feedback and justifications is essential. Future work should explore methods to generate accompanying explanations or highlight evidence from student answers.
+
+\textbf{5. Computational Costs.} LLaMA’s training and inference requirements are substantial. On standard GPUs, processing all test examples required several hours. While parameter-efficient fine-tuning (e.g., LoRA) helped reduce the cost, the model still requires dedicated hardware and setup, which may not be feasible in all educational institutions.
+
+\textbf{6. Robustness and Bias.} Like all data-driven models, performance depends on the training set. If training data includes bias or labeling inconsistencies (especially for edge cases like partially correct answers), models may reproduce or amplify those biases. Regular audit and human-in-the-loop review mechanisms are recommended.
+
+\section{Conclusion}
+This study presents a comparative evaluation of three automated grading approaches for short-answer questions: a rule-based system, a BERT-based RoBERTa classifier, and a fine-tuned LLaMA-3B model. Our results show a consistent improvement in performance as model complexity increases. LLaMA achieved the highest overall accuracy (94.8\%), and it was the only model to predict “Partially Correct” responses with any measurable F1-score (0.22), though its performance in this class was still limited.
+
+The rule-based approach, while the weakest in terms of raw accuracy (70.0\%), offered the greatest interpretability and required no training. The RoBERTa model performed well on clearly correct or incorrect answers (91.7\%) but completely ignored the “Partially Correct” class, likely due to its imbalance.
+
+Our results suggest that while LLMs are the most accurate graders, their opacity and resource needs make them challenging for real-time or scalable deployment. A hybrid system—combining the transparency of rule-based methods with the semantic strength of LLMs—may offer the best of both worlds.
+
+Future work should explore ensemble methods, use of confidence thresholds, and incorporation of justification generation. ASAG systems should not only strive for high accuracy but also support educators and students by explaining decisions and offering formative feedback.
+
+\newpage
+\bibliographystyle{acl_natbib}
+
+\begin{thebibliography}{}
+
+\bibitem[Devlin et~al.(2019)]{devlin-etal-2019-bert}
+Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. 2019. 
+\newblock {BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding}. 
+\newblock In \textit{Proceedings of NAACL-HLT 2019}, pages 4171--4186.
+
+\bibitem[Liu et~al.(2019)]{liu2019roberta}
+Yinhan Liu, Myle Ott, Naman Goyal, et al. 2019. 
+\newblock {RoBERTa: A Robustly Optimized BERT Pretraining Approach}. 
+\newblock \textit{arXiv preprint} arXiv:1907.11692.
+
+\bibitem[Sung et~al.(2019)]{sung2019bert}
+Chul Sung, Tejas Dhamecha, Swarnadeep Saha, Tengfei Ma, Vinay Reddy, and Rishi Arora. 2019.
+\newblock {Pre-Training BERT on Domain Resources for Short Answer Grading}. 
+\newblock In \textit{Proceedings of EMNLP-IJCNLP 2019}, pages 6071--6075.
+
+\bibitem[Sultan et~al.(2019)]{sultan2019fast}
+M. A. Sultan, Carolina W. Salazar, and Tamara Sumner. 2019.
+\newblock {Fast and Easy Short Answer Grading with High Accuracy}. 
+\newblock In \textit{Proceedings of BEA 2019 (ACL Workshop)}, pages 185--190.
+
+\bibitem[Kortemeyer(2024)]{kortemeyer2024gpt4}
+Gerd Kortemeyer. 2024.
+\newblock {Performance of the Pre-trained Large Language Model GPT-4 on Automated Short Answer Grading}. 
+\newblock \textit{Discover Artificial Intelligence}, 4(47).
+
+\bibitem[Touvron et~al.(2023)]{touvron2023llama}
+Hugo Touvron, Thibaut Lavril, Gautier Izacard, et al. 2023.
+\newblock {LLaMA: Open and Efficient Foundation Language Models}. 
+\newblock \textit{arXiv preprint} arXiv:2302.13971.
+
+\bibitem[Burrows et~al.(2015)]{burrows2015eras}
+Simon Burrows, Mihai D. Tompa, and Goldenstein. 2015.
+\newblock {The Eras and Trends of Automatic Short Answer Grading}. 
+\newblock \textit{International Journal of Artificial Intelligence in Education}, 25(1):60--117.
+
+\end{thebibliography}
+
+\end{document}
+
+
+
