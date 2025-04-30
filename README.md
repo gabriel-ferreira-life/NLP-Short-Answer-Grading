@@ -25,7 +25,7 @@ Correct Answer: <expected_answer>
 label:
 ```
 
-The model will complete the prompt with one of:
+The model will complete the prompt with one of: 
 ```
 Correct
 Partially Correct
