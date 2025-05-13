@@ -78,11 +78,12 @@ See heatmaps in the `images/` folder for a per-class breakdown.
   - **0** = Incorrect
 - Notably imbalanced (only ~1% are Partially Correct)
 
+Note: Data is hidden for privacy purposes.
 ---
 
 ## Report & Analysis
 For a detailed report on findings and term analysis, refer to:
-[Phrase Mining Report (PDF)](report/NLP_AnimalQTL_Document_Classification.pdf). 
+[Phrase Mining Report (PDF)](report/COMS_5790_Final_Project_Report.pdf). 
 
 --
 
