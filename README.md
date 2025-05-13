@@ -73,9 +73,9 @@ See heatmaps in the `images/` folder for a per-class breakdown.
 
 - 30,000+ labeled student responses
 - Classes:
-  - **2** = Correct
-  - **1** = Partially Correct
-  - **0** = Incorrect
+  - Correct
+  - Partially Correct
+  - Incorrect
 - Notably imbalanced (only ~1% are Partially Correct)
 
 Note: Data is hidden for privacy purposes.
