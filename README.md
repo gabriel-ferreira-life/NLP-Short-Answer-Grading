@@ -80,6 +80,12 @@ See heatmaps in the `images/` folder for a per-class breakdown.
 
 ---
 
+## Report & Analysis
+For a detailed report on findings and term analysis, refer to:
+[Phrase Mining Report (PDF)](report/NLP_AnimalQTL_Document_Classification.pdf). 
+
+--
+
 ## 📄 Authors
 
 Nicholas George \
