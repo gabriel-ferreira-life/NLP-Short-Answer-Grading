@@ -40,6 +40,13 @@
 \usepackage{url}
 \renewcommand{\UrlFont}{\ttfamily\small}
 \usepackage{amsmath}
+\usepackage{adjustbox}
+\usepackage{float}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}  % clear all header and footer fields
+\fancyfoot[C]{\thepage}  % center footer with page number
+
 
 \title{Automated Short Answer Grading: Comparing Rule-Based, BERT, and LLaMA Models}
 \author{Nicholas George \and Gabriel Gomes Ferreira \and Bhavika Gungurthi\\
@@ -54,29 +61,16 @@
 Short answer grading (SAG) is the task of automatically evaluating a student's free-form response to a question against the correct answer. This paper presents a comparative study of three approaches for automated short-answer grading: a simple rule-based method, a fine-tuned BERT-based classifier, and a fine-tuned LLaMA (large language model) approach. Using a dataset of science questions with labels (Correct, Partially Correct, Incorrect), we found that large transformer-based models achieve state-of-the-art performance on this task. In particular, our fine-tuned LLaMA model attained high accuracy in identifying correct and incorrect answers, though all models struggled with the nuanced “partially correct” class. We discuss the trade-offs between model complexity, interpretability, and performance. This work highlights that while advanced pre-trained models can significantly improve grading accuracy, simpler methods still offer interpretability and lower deployment cost.
 \end{abstract}
 
-\section*{Executive Summary}
-Educators often face the tedious task of grading short answer questions for large classes. Our project explores how AI can assist in this process by automatically grading student responses. We implemented three different graders: 
-(1) a \textbf{rule-based grader} that uses simple heuristics (like keyword matching) to decide if an answer is correct or not, 
-(2) a \textbf{BERT-based grader} that uses a pre-trained transformer (BERT/RoBERTa) fine-tuned on a labeled dataset of Q\&A, and 
-(3) a \textbf{LLM-based grader} that leverages a large language model (LLaMA) fine-tuned to act like an expert grading assistant.
-
-Why these approaches? The rule-based model is easy to understand and explain, but it may miss nuances. The BERT-based model is a proven NLP technique that can learn to evaluate answers with decent accuracy. The LLM (LLaMA) approach is cutting-edge—these models understand language deeply and might catch subtle correctness cues.
-
-Key findings: Our LLaMA model achieved nearly 95\% accuracy, significantly outperforming the others on standard examples. However, even it struggled with partially correct responses. The rule-based approach was overly strict, while the BERT-based model performed well on majority classes but entirely missed the partially correct ones. Our results underscore the potential of hybrid models and the importance of balancing performance with interpretability.
-
 \section{Introduction}
-Automated Short Answer Grading (ASAG) is the task of evaluating students’ free-text responses using computational methods. ASAG holds great promise for improving scalability and consistency in grading, particularly in online learning platforms, large lecture courses, and standardized assessments. However, short answers exhibit high linguistic variability, and determining correctness often requires understanding intent, partial knowledge, and conceptual connections.
+Educators often face the tedious task of grading short answer questions for large classes. Automated Short Answer Grading (ASAG) is the task of evaluating students’ free-text responses using computational methods. ASAG holds great promise for improving scalability and consistency in grading, particularly in online learning platforms, large lecture courses, and standardized assessments. However, short answers exhibit high linguistic variability, and determining correctness often requires understanding intent, partial knowledge, and conceptual connections.
 
-Prior approaches to ASAG ranged from keyword matching and handcrafted templates to more sophisticated similarity measures. While interpretable, such systems lacked robustness to paraphrasing or semantic variation. The emergence of pre-trained transformers like BERT and RoBERTa introduced powerful general-purpose text representations that could be fine-tuned for ASAG tasks. Even more recently, instruction-tuned large language models (LLMs) such as LLaMA have shown promise in text generation, reasoning, and few-shot classification, enabling them to evaluate answers directly via prompt-based techniques.
+Prior approaches to ASAG ranged from keyword matching and handcrafted templates to more sophisticated similarity measures (Burrows, Tompa, \& Goldenstein, 2015). While interpretable, such systems lacked robustness to paraphrasing or semantic variation. The emergence of pre-trained transformers like BERT (Devlin et al., 2019) and RoBERTa (Liu et al., 2019) introduced powerful general-purpose text representations that could be fine-tuned for ASAG tasks. Even more recently, instruction-tuned large language models (LLMs) such as LLaMA (Touvron et al., 2023) have shown promise in text generation, reasoning, and few-shot classification, enabling them to evaluate answers directly via prompt-based techniques. 
 
-This paper explores and compares three approaches to SAG:
-\begin{itemize}
-    \item A \textbf{rule-based baseline}, using keyword overlap and simple heuristics
-    \item A \textbf{RoBERTa-based classifier}, trained on labeled Q-A data
-    \item A \textbf{LLaMA-3B model}, instruction-tuned using LoRA to generate class labels from prompts
-\end{itemize}
+Our project explores how AI can assist in this process by automatically grading student responses. We implemented three different graders: (1) a rule-based grader that uses simple heuristics (like keyword matching) to decide if an answer is correct or not, (2) a BERT-based grader that uses a pre-trained transformer (BERT/RoBERTa) fine-tuned on a labeled dataset of Q\&A, and (3) a LLM-based grader that leverages a large language model (LLaMA) fine-tuned to act like an expert grading assistant. 
 
-We aim to assess performance across three classes (Correct, Partially Correct, Incorrect) using a scientific QA dataset. Our focus is on not only classification performance, but also trade-offs in interpretability, cost, and scalability. We also analyze each model’s ability to handle edge cases, such as partially correct responses.
+The rule-based model is easy to understand and explain, but it may miss nuances. The BERT-based model is a proven NLP technique that can learn to evaluate answers with decent accuracy. The LLM (LLaMA) approach is cutting-edge—these models understand language deeply and might catch subtle correctness cues.
+
+Using these techniques, we aim to assess performance across three classes (Correct, Partially Correct, Incorrect) using a scientific QA dataset. We also analyze each model’s ability to handle edge cases, such as partially correct responses. Our focus is on not only classification performance, but also trade-offs in interpretability, cost, and scalability.
 
 \section{Related Work}
 Automatic short answer grading systems have evolved over the past two decades. Early symbolic approaches like c-rater and ETS's E-Rater used rule-based systems with handcrafted templates. Later, vector-space models used cosine similarity between bag-of-words or TF-IDF embeddings. Semantic similarity using WordNet or dependency parsing also emerged as common tools.
@@ -92,27 +86,57 @@ We evaluate three approaches to short answer grading using the same data inputs:
 Our evaluation compares model performance in terms of classification accuracy, macro-F1, and interpretability. We also provide qualitative examples to highlight differences in model behavior.
 
 \subsection{Rule-Based Heuristic Grader}
-The rule-based model checks for keyword overlap between the student’s response and the correct answer:
+The rule-based model checks for keyword overlap between the student’s response and the reference answer:
+
 \begin{itemize}
-    \item Stopwords are removed, and both texts are normalized.
-    \item If the student’s response includes all the key terms from the reference, it is graded as \textbf{Correct}.
-    \item If it includes more than 50\% of the key terms, it is marked \textbf{Partially Correct}.
+    \item Both texts are normalized (e.g., lowercased, punctuation removed), and stopwords are removed.
+    \item \textbf{Key terms} are defined as the remaining content words in the reference answer after preprocessing—typically nouns, verbs, adjectives, and domain-specific terminology deemed essential to the answer's meaning.
+    \item If the student’s response includes \emph{all} key terms, it is graded as \textbf{Correct}.
+    \item If it includes \emph{more than 50\%} of the key terms, it is marked \textbf{Partially Correct}.
     \item Otherwise, it is labeled \textbf{Incorrect}.
 \end{itemize}
+
 
 This approach is simple and interpretable but brittle. It fails to detect semantically equivalent responses with different vocabulary and cannot recognize negation or entailment.
 
 \subsection{BERT-Based Classifier (RoBERTa)}
-We use RoBERTa-base, a robustly optimized BERT variant, fine-tuned for 3-class classification. Each input consists of three components: the question, the reference answer, and the student response. These are concatenated with special separator tokens and tokenized using the Hugging Face tokenizer.
 
-The model is trained using a cross-entropy loss across three labels:
+We implemented a fine-tuned RoBERTa-base model for the 3-class short answer grading task. RoBERTa is a robustly optimized variant of BERT, and we used the Hugging Face Transformers library for training and inference.
+
+\subsubsection*{Input Format}
+Each training example was constructed by concatenating the question, reference answer, and student response in the following format:
+
+\begin{quote}
+\texttt{[CLS] Question [SEP] Reference Answer [SEP] Student Response}
+\end{quote}
+
+\noindent This entire sequence was tokenized using RoBERTa's tokenizer.
+
+\subsubsection*{Label Encoding}
+Each student response was mapped to one of three class labels:
+
 \begin{itemize}
-    \item Label 2: Correct
-    \item Label 1: Partially Correct
-    \item Label 0: Incorrect
+    \item \textbf{2 = Correct}
+    \item \textbf{1 = Partially Correct}
+    \item \textbf{0 = Incorrect}
 \end{itemize}
 
-We trained for 3 epochs on the training set (80\% split), with a batch size of 16 and learning rate of 2e-5. Model checkpoints were monitored using weighted-F1 on the validation split. Despite its strong overall performance, RoBERTa failed to predict the “Partially Correct” class during inference, likely due to class imbalance in the dataset.
+\subsubsection*{Model Architecture and Training}
+The model uses the embedding of the \texttt{[CLS]} token to classify the input sequence. The output is passed through a classification head to produce the predicted label:
+\[
+y = \texttt{classifier}([\texttt{CLS}]~\text{embedding})
+\]
+
+Training details are as follows:
+\begin{itemize}
+    \item \textbf{Epochs:} 3
+    \item \textbf{Batch Size:} 16
+    \item \textbf{Learning Rate:} $2 \times 10^{-5}$
+    \item \textbf{Train/Validation Split:} 80/20
+\end{itemize}
+
+We monitored the validation performance and selected the model checkpoint with the highest weighted F1 score.
+
 
 \subsection{LLM-Based Model (LLaMA-3B)}
 We instruction-tuned LLaMA-3B using LoRA and the TRL (Transformers Reinforcement Learning) library. Each training instance was formatted as an instructional prompt:
@@ -131,22 +155,39 @@ Inference involved prompting the model with similar examples and parsing the pre
 
 \section{Experiments and Results}
 \subsection{Dataset}
-Our dataset includes over 30,000 science-domain short answers. Each instance consists of:
+
+We used a short answer grading dataset consisting of over 30,000 responses from the science domain. Each data instance includes the following components:
+
 \begin{itemize}
-    \item A question
-    \item An expert reference answer
-    \item A student response
-    \item A label: 1 (Correct), 0 (Partially Correct), or -1 (Incorrect)
+    \item \textbf{Question}: The original science question.
+    \item \textbf{Reference Answer}: An expert-provided correct answer.
+    \item \textbf{Student Response}: A free-form student-written answer.
+    \item \textbf{Label}: The student response is classified into one of three categories (Correct, Partially Correct, and Incorrect).
 \end{itemize}
 
-Test set distribution:
-\begin{itemize}
-    \item Correct: 13,532 responses (44\%)
-    \item Partially Correct: 320 responses (1\%)
-    \item Incorrect: 16,614 responses (55\%)
-\end{itemize}
+The dataset was split into training and test sets as shown in Table~\ref{tab:data_distribution}.
 
-The severe class imbalance presents a key challenge for all models, particularly in recognizing partially correct answers, which require semantic nuance.
+\begin{table}[h]
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lccc}
+\hline
+\textbf{Response Type} & \textbf{Train} & \textbf{Test} & \textbf{Total (\%)} \\
+\hline
+Correct & 52.67\% & 44.4\% & 14,717 (48.3\%) \\
+Partially Correct & 2.80\% & 1.1\% & 383 (1.3\%) \\
+Incorrect & 44.53\% & 54.5\% & 17,616 (57.4\%) \\
+\hline
+\textbf{Total} & 2,250 (100\%) & 30,466 (100\%) & 32,716 (100\%) \\
+\hline
+\end{tabular}%
+}
+\caption{Distribution of response types in the training and test sets.}
+\label{tab:data_distribution}
+\end{table}
+
+A significant challenge in this dataset is the severe class imbalance, particularly the underrepresentation of the \textit{Partially Correct} class. This imbalance poses difficulties for model training and evaluation, especially in capturing nuanced responses.
+
 
 \subsection{Evaluation Metrics}
 We evaluate each model using:
@@ -163,6 +204,7 @@ RoBERTa and LLaMA were validated using held-out splits from the training set. Th
 \subsection{Results}
 \begin{table}[h]
 \centering
+\begin{adjustbox}{width=\columnwidth}
 \begin{tabular}{lccc}
 \hline
 \textbf{Model} & \textbf{Accuracy} & \textbf{Macro-F1} & \textbf{Weighted-F1} \\
@@ -172,10 +214,36 @@ RoBERTa (BERT) & 91.7\% & 61.0\% & 91.0\% \\
 LLaMA-3B & 94.8\% & 71.0\% & 95.0\% \\
 \hline
 \end{tabular}
-\caption{Test performance of all three models.}
+\end{adjustbox}
+\caption{Distribution of response types in the training and test sets.}
+\label{tab:data_distribution}
 \end{table}
 
-The LLaMA model achieved the best performance across all metrics, particularly in handling the “Correct” and “Incorrect” classes. It was also the only model that successfully predicted a significant portion of the “Partially Correct” responses (F1 = 0.22).
+The LLaMA model achieved the best overall performance across all evaluation metrics, particularly excelling in the "Correct" and "Incorrect" classes. Notably, it was the only model able to capture a measurable portion of the "Partially Correct" responses (F1 = 0.22), highlighting its advantage in handling nuanced answers.
+
+To provide a more detailed view of how each model performed across the three classes, we present the confusion matrix heatmaps below. These visualizations help illustrate class-specific performance and error patterns across the rule-based, RoBERTa, and LLaMA models.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{images/rule_based.png}
+    \caption{Confusion matrix heatmap for the Rule-Based model.}
+    \label{fig:rule_based}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{images/RoBERTa.png}
+    \caption{Confusion matrix heatmap for the RoBERTa model.}
+    \label{fig:roberta}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{images/LLAMA-3b.png}
+    \caption{Confusion matrix heatmap for the LLaMA-3B model.}
+    \label{fig:llama}
+\end{figure}
+
 
 \subsection{Analysis of Class-Level Performance}
 The rule-based model was overly strict. It correctly identified many incorrect answers but failed to recognize correct or partially correct answers unless the wording was nearly exact. It achieved high precision for the “Incorrect” class (0.95), but extremely low recall for “Correct” (0.41) and “Partially Correct” (0.17). The macro-F1 score (48.0\%) reflects its inability to balance across classes.
